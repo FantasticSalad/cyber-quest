@@ -1,95 +1,29 @@
-# Rearc Cybersecurity Detection Quest
+### Part 1: Load the Sample Dataset (provided)
 
-## Q. What is this quest?
-The cybersecurity quest is a fun way to assess your hands-on engineering skills. It is also a good representation of the type of work associated with this role.
-
-## Q. What skills are needed?
-* Detection Engineering
-* Security Data Engineering
-* Programming Language (Python and/or SQL)
-* Development (Working with Jupyter Notebooks, Python, and Git)
-
-## Q. Challenge Steps
-This quest consists of 3 main parts. Putting all 3 of these parts together will mimic our detection development and engineering workflow. If you get stuck see the [FAQ section](#faq).
-
-- Part 1 is completed for you, this section consists of setting up the local spark environment, loading the JSON data in, and parsing it to a usable state.
-- Part 2 will showcase your analytic skills by applying the threat hypothesis below to an actionable analytic query using SQL (preferably).
-- Part 3 will showcase your knowledge of additional subjects such as data normalization frameworks, alert packaging, and threat intel enrichment.
-
-
-### Hypothesis - IMPORTANT
-
- - Adversaries may send spearphishing emails with a malicious attachment in an attempt to gain access to victim systems. 
- - A threat actor can leverage Microsoft Office applications against users on Windows endpoints through phishing to make potentially malicious web calls. 
- - Windows Endpoints forwarding DNS activity via sysmon logs to a data orchestration platform like Cribl would be utilized to identify this activity.
-
-### Part 1: Load the Sample Dataset
-
-***THIS STEP IS COMPLETED FOR YOU.***
-<br />The template Jupyter notebook contains the code for the following actions:
-
-1. Load the JSON line file from the `data/` directory into a Spark dataframe.
-2. Create a new dataframe that parses out any necessary fields from the `_raw` column to be used in part 2.
-3. Create a view for use with Spark SQL queries
+The initial dataframe provided (df_silver) contains Sysmon logs.
 
 ### Part 2: Detection Engineering
 
-1. Preferably using either PySpark or SQL, create a query or queries that will prove the detection hypothesis.
-2. Output the result of this query in the notebook with a new dataframe
-    - Select columns based on what is applicable to an analyst during triage
+df_silver dataframe shows sysmon logs from a Windows device. In order to test the hypothesis, the dataframe was filtered for DNS query events. As threat actors utilising Microsoft Office applications are to be targeted by the detection, the dataframe is filtered for "Microsoft Office" string anywhere in Image (the path of the executable that triggered the event), ending with ".exe". MS Office applications often query Microsoft, shown in legitimate query events in the logs, therefore, the next filter filters out legitmate DNS queries ending in "office.net" or "office.com". 
+
+df_detect dataframe was created with the results, including _time, Computer, EventCode, User, Image, UserID, QueryName and QueryResults columns, relevant for a security analyst.
+
+df_detect shows a single event detected by the logic, a DNS query initiated by WINWORD.EXE to www.mediafire.com, which is a filehosting site. This potentially indicates a macro running in MS Word, and pulling down a malicious file hosted on Mediafire. The queries resolve to Pv4 addresses owned by Cloudflare infrastructure, indicating that traffic to Mediafire is first routed to/proxied by Cloudflare.
 
 ### Part 3: Additional Steps
 
-#### Data Normalization
- - Using any relevant cybersecurity data model framework, create a "normalized" view of your original parsed/result dataframe
+#### 3.1 Data Normalization
 
-#### Write the result to a fictitious `alert` table
- - Package the result of the detection as an alert row in a new dataframe that would theoretically be used by an analyst during triage
-    - Think about what an analyst would need, what metadata would be useful at a high level, how this might be presented on a dashboard
+Splunk CIM Network Resolution (DNS) data model was utilised for normalisation of the output, chosen for its suitability for the type of event logs in df_detect.
 
+#### 3.2 Write the result to a fictitious `alert` table
 
-#### Threat Intel Enrichment on Domain in Query
-  - Given that the source data includes domain names, enrich the detection or alert with information from any threat intelligence source
+Information necessary for rapid triage and investigation was added as part of the output to the alert table (df_alert_table) including log source, alert title severity. MITRE ATT&CK Tactic and Technique were added for TTP mapping of alerts. Other columns were renamed for clarity.
 
-## FAQ
+#### 3.3 Threat Intel Enrichment on Domain in Query
 
-### Q. What do I need to do to setup this environment
-A general understanding of Python and Virtual Environments is expected. For the purposes of this challenge the only dependency outside of what is listed in the `requirements.txt` file is Java 17 or Later
+I was unable to perform enrichment directly in this environment. In a real world scenario, one would be to perform a JOIN on a threat intel IOC table, if such a table were available in the SIEM. Alternatively, python could be utilised to perform API calls to threat intel sites to check the legitimacy of domains and resolved IPs, further enriching the alert table.
 
-### Q. Do I have to complete every step?
-Complete the steps that you feel comfortable with.
+#### AI Utilised in Cyber Quest
 
-### Q. What do I have to submit?
-Submission should include a copy of the repo with a Jupyter notebook populated with the results of your code as well as a README file that includes a quick explanation of your process.
-
-### Q. Can I share this quest with others?
-No.
-
-### Q. What can I do if I've never worked with Jupyter Notebooks, PySpark, or SQL before?
-We would still like you to demonstrate your existing skills. Feel free to accomplish the hypothesis goal in whatever way you do have experience with, or use the hints to do as much as you can.
-
-### Q. Can I use AI to assist me?
-You ***may*** use AI as a reference tool but there will be a strong expectation to exhibit the same expertise and understanding from your submission in your interview. In addition we encourage you to be open about any usage! Please document what you used, what your prompts were, how it helped, what it got wrong, etc.
-
-### Q. Hints 🤐
-<details>
-<summary>Hint 1: Loading a dataframe using PySpark</summary>
-
-- Installation: We recommend using a local virtual python environment, use the following link for [setup information](https://spark.apache.org/docs/latest/api/python/getting_started/install.html#)
-
--  PySpark Initialization & Reading JSON: [See Getting Started Docs](https://spark.apache.org/docs/latest/sql-getting-started.html#running-sql-queries-programmatically)
-
-</details>
-<details>
-<summary>Hint 2: Parsing a dataframe in PySpark</summary>
-
-- For extractic JSON, [See PySpark docs](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.from_json.html)
-- The [Ultimate Windows Security Encyclopedia]("https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/") is a good resources for the schema.
-
-</details>
-<details>
-<summary>Hint 3: Using SQL with a dataframe</summary>
- 
-- Running SQL Queries Programmatically: [See Getting Started Docs](https://spark.apache.org/docs/latest/sql-getting-started.html#running-sql-queries-programmatically)
-
-</details>
+AI was used to assist with setting up environment and troubleshooting issues with version control. It was also used to troubleshoot syntactical errors with code. It was not used for analysis of logs or for development of detection logic.
